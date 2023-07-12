@@ -569,6 +569,7 @@ version = "0.1.0"
 dependencies = [
  "reqwest",
  "rocket",
+ "serde",
  "shuttle-rocket",
  "shuttle-runtime",
  "shuttle-shared-db",
@@ -1896,6 +1897,7 @@ dependencies = [
  "rocket_codegen",
  "rocket_http",
  "serde",
+ "serde_json",
  "state",
  "tempfile",
  "time",
