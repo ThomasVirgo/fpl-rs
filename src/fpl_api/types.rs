@@ -10,37 +10,38 @@ pub struct Event {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Player {
-    id: u32,
-    first_name: String,
-    second_name: String,
-    now_cost: u32,
-    points_per_game: String,
-    selected_by_percent: String,
-    element_type: u32,
-    photo: String,
-    team: u32,
-    total_points: u32,
-    minutes: u32,
-    starts: u32,
+    #[serde(rename = "id")]
+    pub player_id: i32,
+    pub first_name: String,
+    pub second_name: String,
+    pub now_cost: i32,
+    pub points_per_game: String,
+    pub selected_by_percent: String,
+    pub element_type: i32,
+    pub photo: String,
+    pub team: i32,
+    pub total_points: i32,
+    pub minutes: i32,
+    pub starts: i32,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Team {
-    id: u32,
+    id: i32,
     name: String,
-    points: u32,
+    points: i32,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PlayerType {
-    id: u32,
+    id: i32,
     singular_name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Overview {
-    events: Vec<Event>,
-    teams: Vec<Team>,
-    elements: Vec<Player>,
-    element_types: Vec<PlayerType>,
+    pub events: Vec<Event>,
+    pub teams: Vec<Team>,
+    pub elements: Vec<Player>,
+    pub element_types: Vec<PlayerType>,
 }
