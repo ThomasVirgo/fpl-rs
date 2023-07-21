@@ -1,14 +1,12 @@
 #[macro_use]
 extern crate rocket;
 
-use sqlx::{query, Execute, PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 
 mod fpl_api;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
 use fpl_api::pull_data::pull_overview;
-use fpl_api::types::{Overview, Player, PlayerFromDB};
-use rocket::http::Status;
-use rocket::response::status;
+use fpl_api::types::{Overview, PlayerFromDB};
 use rocket::serde::json::Json;
 use rocket::State;
 
@@ -18,7 +16,7 @@ struct AppState {
 
 #[get("/")]
 fn index() -> &'static str {
-    "Hello, world!"
+    "Welcome to FPL wrapped..."
 }
 
 #[get("/fpl_endpoints")]
@@ -27,7 +25,7 @@ fn fpl_endpoints() -> String {
 }
 
 #[get("/overview")]
-async fn overview(state: &State<AppState>) -> Json<Overview> {
+async fn overview(state: &State<AppState>) -> String {
     let latest_created_at: chrono::DateTime<chrono::Utc> =
         sqlx::query_scalar("SELECT created_at FROM players ORDER BY created_at DESC LIMIT 1")
             .fetch_one(&state.pool)
@@ -55,8 +53,9 @@ async fn overview(state: &State<AppState>) -> Json<Overview> {
         });
         let query = query_builder.build();
         query.execute(&state.pool).await.unwrap();
+        return String::from("added players data");
     }
-    Json(resp)
+    return String::from("did not add players data");
 }
 
 #[get("/players")]
@@ -66,11 +65,21 @@ async fn players(state: &State<AppState>) -> Json<Vec<PlayerFromDB>> {
     Json(result)
 }
 
+#[get("/players/<player_id>")]
+async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<PlayerFromDB>> {
+    println!("{}", player_id);
+    let players = sqlx::query_as::<_, PlayerFromDB>("SELECT * from players WHERE player_id = $1")
+        .bind(&player_id);
+    let result = players.fetch_all(&state.pool).await.unwrap();
+    Json(result)
+}
+
 #[shuttle_runtime::main]
 async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::ShuttleRocket {
     let state = AppState { pool };
-    let rocket = rocket::build()
-        .manage(state)
-        .mount("/", routes![index, fpl_endpoints, overview, players]);
+    let rocket = rocket::build().manage(state).mount(
+        "/",
+        routes![index, fpl_endpoints, overview, players, player_timeseries],
+    );
     Ok(rocket.into())
 }
