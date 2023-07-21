@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Event {
@@ -17,6 +18,22 @@ pub struct Player {
     pub now_cost: i32,
     pub points_per_game: String,
     pub selected_by_percent: String,
+    pub element_type: i32,
+    pub photo: String,
+    pub team: i32,
+    pub total_points: i32,
+    pub minutes: i32,
+    pub starts: i32,
+}
+
+#[derive(Debug, FromRow, Serialize)]
+pub struct PlayerFromDB {
+    pub player_id: i32,
+    pub first_name: String,
+    pub second_name: String,
+    pub now_cost: i32,
+    pub points_per_game: f32,
+    pub selected_by_percent: f32,
     pub element_type: i32,
     pub photo: String,
     pub team: i32,

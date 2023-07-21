@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate rocket;
 
-use sqlx::{Execute, PgPool, Postgres, QueryBuilder};
+use sqlx::{query, Execute, PgPool, Postgres, QueryBuilder};
 
 mod fpl_api;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
 use fpl_api::pull_data::pull_overview;
-use fpl_api::types::Overview;
+use fpl_api::types::{Overview, Player, PlayerFromDB};
 use rocket::http::Status;
 use rocket::response::status;
 use rocket::serde::json::Json;
@@ -51,11 +51,18 @@ async fn overview(state: &State<AppState>) -> Json<Overview> {
     Json(resp)
 }
 
+#[get("/players")]
+async fn players(state: &State<AppState>) -> Json<Vec<PlayerFromDB>> {
+    let players = sqlx::query_as::<_, PlayerFromDB>("SELECT * from players");
+    let result = players.fetch_all(&state.pool).await.unwrap();
+    Json(result)
+}
+
 #[shuttle_runtime::main]
 async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::ShuttleRocket {
     let state = AppState { pool };
     let rocket = rocket::build()
         .manage(state)
-        .mount("/", routes![index, fpl_endpoints, overview]);
+        .mount("/", routes![index, fpl_endpoints, overview, players]);
     Ok(rocket.into())
 }
