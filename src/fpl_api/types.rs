@@ -26,7 +26,7 @@ pub struct Player {
     pub starts: i32,
 }
 
-#[derive(Debug, FromRow, Serialize)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct PlayerFromDB {
     pub player_id: i32,
     pub first_name: String,
@@ -40,6 +40,7 @@ pub struct PlayerFromDB {
     pub total_points: i32,
     pub minutes: i32,
     pub starts: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
