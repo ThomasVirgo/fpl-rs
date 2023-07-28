@@ -35,7 +35,7 @@ async fn overview(state: &State<AppState>) -> String {
     let resp = pull_overview().await.unwrap();
     if latest_created_at < one_day_ago {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO players(player_id, first_name, second_name, now_cost, points_per_game, selected_by_percent, element_type, photo, team, total_points, minutes, starts);",
+            "INSERT INTO players(player_id, first_name, second_name, now_cost, points_per_game, selected_by_percent, element_type, photo, team, total_points, minutes, starts)",
         );
         query_builder.push_values(&resp.elements, |mut b, player| {
             b.push_bind(player.player_id)
