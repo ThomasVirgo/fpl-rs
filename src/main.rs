@@ -5,10 +5,12 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 
 mod fpl_api;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
-use fpl_api::pull_data::pull_overview;
-use fpl_api::types::{Overview, PlayerFromDB};
+use fpl_api::pull_data::{pull_league_standings, pull_overview};
+use fpl_api::types::{LeagueStandings, PlayerFromDB};
 use rocket::serde::json::Json;
 use rocket::State;
+
+const OVERALL_LEAGUE_ID: u32 = 314;
 
 struct AppState {
     pool: PgPool,
@@ -74,12 +76,56 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
     Json(result)
 }
 
+#[get("/add_managers")]
+async fn add_managers(state: &State<AppState>) -> Json<LeagueStandings> {
+    let latest_page: i32 = sqlx::query_scalar(
+        "SELECT page
+        FROM page_logs
+        ORDER BY created_at DESC
+        LIMIT 1;",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap();
+    let page = latest_page + 1;
+    let resp = pull_league_standings(OVERALL_LEAGUE_ID, page)
+        .await
+        .unwrap();
+    let mut query_builder: QueryBuilder<Postgres> =
+        QueryBuilder::new("INSERT INTO managers(manager_id, player_name, entry_name)");
+    query_builder.push_values(&resp.standings.results, |mut b, manager| {
+        b.push_bind(manager.entry)
+            .push_bind(&manager.player_name)
+            .push_bind(&manager.entry_name);
+    });
+    let query = query_builder.build();
+    let query_result = query.execute(&state.pool).await;
+    match query_result {
+        Ok(_) => {}
+        Err(_) => {}
+    }
+
+    sqlx::query("INSERT INTO page_logs (page) VALUES ($1)")
+        .bind(page)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+    Json(resp)
+}
+
 #[shuttle_runtime::main]
 async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::ShuttleRocket {
     let state = AppState { pool };
     let rocket = rocket::build().manage(state).mount(
         "/",
-        routes![index, fpl_endpoints, overview, players, player_timeseries],
+        routes![
+            index,
+            fpl_endpoints,
+            overview,
+            players,
+            player_timeseries,
+            add_managers
+        ],
     );
     Ok(rocket.into())
 }

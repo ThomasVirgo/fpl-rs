@@ -63,3 +63,33 @@ pub struct Overview {
     pub elements: Vec<Player>,
     pub element_types: Vec<PlayerType>,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ManagerFplWrapped {
+    manager_id: i32,
+    best_gw_score: i32,
+    best_gw_rank: i32,
+    best_overall_rank: i32,
+    most_played_player_id: i32,
+    correct_captaincy_picks: i32,
+    incorrect_captaincy_picks: i32,
+    points_lost_from_incorrect_captaincy: i32,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Standings {
+    pub results: Vec<Manager>,
+    pub has_next: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct LeagueStandings {
+    pub standings: Standings,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Manager {
+    pub player_name: String,
+    pub entry: i32,
+    pub entry_name: String,
+}

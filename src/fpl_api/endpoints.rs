@@ -8,7 +8,7 @@ pub enum FPLEndpoint {
     ManagerHistory { manager_id: u32 },
     ManagerTransfers { manager_id: u32 },
     ManagerTeam { manager_id: u32, event_id: u32 },
-    ClassicLeagueStandings { league_id: u32 },
+    ClassicLeagueStandings { league_id: u32, page_standings: i32 },
     H2HStandings { league_id: u32 },
 }
 
@@ -41,8 +41,14 @@ pub fn get_fpl_url(endpoint: FPLEndpoint) -> String {
         FPLEndpoint::ManagerTransfers { manager_id } => {
             format!("{}/entry/{}/transfers/", BASE_URL, manager_id)
         }
-        FPLEndpoint::ClassicLeagueStandings { league_id } => {
-            format!("{}/leagues-classic/{}/standings/", BASE_URL, league_id)
+        FPLEndpoint::ClassicLeagueStandings {
+            league_id,
+            page_standings,
+        } => {
+            format!(
+                "{}/leagues-classic/{}/standings/?page_new_entries=1&page_standings={}&phase=1",
+                BASE_URL, league_id, page_standings
+            )
         }
         FPLEndpoint::H2HStandings { league_id } => {
             format!("{}/leagues-h2h-matches/league/{}/", BASE_URL, league_id)
