@@ -78,16 +78,18 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
 
 #[get("/add_managers")]
 async fn add_managers(state: &State<AppState>) -> Json<LeagueStandings> {
-    let latest_page: i32 = sqlx::query_scalar(
+    let latest_page: Result<i32, sqlx::Error> = sqlx::query_scalar(
         "SELECT page
         FROM page_logs
         ORDER BY created_at DESC
         LIMIT 1;",
     )
     .fetch_one(&state.pool)
-    .await
-    .unwrap();
-    let page = latest_page + 1;
+    .await;
+    let page = match latest_page {
+        Ok(latest) => latest + 1,
+        Err(_) => 1,
+    };
     let resp = pull_league_standings(OVERALL_LEAGUE_ID, page)
         .await
         .unwrap();
