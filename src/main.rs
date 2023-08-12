@@ -6,7 +6,7 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 mod fpl_api;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
 use fpl_api::pull_data::{pull_league_standings, pull_overview};
-use fpl_api::types::{LeagueStandings, PlayerFromDB};
+use fpl_api::types::{LeagueStandings, ManagerDB, PlayerFromDB};
 use rocket::serde::json::Json;
 use rocket::State;
 
@@ -67,11 +67,31 @@ async fn players(state: &State<AppState>) -> Json<Vec<PlayerFromDB>> {
     Json(result)
 }
 
+#[get("/managers")]
+async fn managers(state: &State<AppState>) -> Json<Vec<ManagerDB>> {
+    let managers = sqlx::query_as::<_, ManagerDB>("SELECT * from managers;");
+    let result = managers.fetch_all(&state.pool).await.unwrap();
+    Json(result)
+}
+
 #[get("/players/<player_id>")]
 async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<PlayerFromDB>> {
     println!("{}", player_id);
     let players = sqlx::query_as::<_, PlayerFromDB>("SELECT * from players WHERE player_id = $1")
         .bind(&player_id);
+    let result = players.fetch_all(&state.pool).await.unwrap();
+    Json(result)
+}
+
+#[get("/managers/<player_name>")]
+async fn get_managers(state: &State<AppState>, player_name: String) -> Json<Vec<ManagerDB>> {
+    println!("{}", player_name);
+    let players = sqlx::query_as::<_, ManagerDB>(
+        "SELECT *
+    FROM managers
+    WHERE player_name ILIKE $1;",
+    )
+    .bind(format!("%{}%", &player_name));
     let result = players.fetch_all(&state.pool).await.unwrap();
     Json(result)
 }
@@ -126,7 +146,9 @@ async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::
             overview,
             players,
             player_timeseries,
-            add_managers
+            add_managers,
+            get_managers,
+            managers,
         ],
     );
     Ok(rocket.into())
