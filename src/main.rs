@@ -74,6 +74,15 @@ async fn managers(state: &State<AppState>) -> Json<Vec<ManagerDB>> {
     Json(result)
 }
 
+#[get("/count_managers")]
+async fn count_managers(state: &State<AppState>) -> Json<i64> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM managers")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap();
+    Json(count)
+}
+
 #[get("/players/<player_id>")]
 async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<PlayerFromDB>> {
     println!("{}", player_id);
@@ -149,6 +158,7 @@ async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::
             add_managers,
             get_managers,
             managers,
+            count_managers
         ],
     );
     Ok(rocket.into())
