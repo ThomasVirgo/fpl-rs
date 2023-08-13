@@ -1,20 +1,20 @@
 pub enum FPLEndpoint {
     Overview,
     Fixtures,
-    FixturesByGameweek { event_id: u32 },
-    PlayerSummary { element_id: u32 },
-    GameweekInfo { event_id: u32 },
-    ManagerSummary { manager_id: u32 },
-    ManagerHistory { manager_id: u32 },
-    ManagerTransfers { manager_id: u32 },
-    ManagerTeam { manager_id: u32, event_id: u32 },
-    ClassicLeagueStandings { league_id: u32, page_standings: i32 },
-    H2HStandings { league_id: u32 },
+    FixturesByGameweek { event_id: i32 },
+    PlayerSummary { element_id: i32 },
+    GameweekInfo { event_id: i32 },
+    ManagerSummary { manager_id: i32 },
+    ManagerHistory { manager_id: i32 },
+    ManagerTransfers { manager_id: i32 },
+    ManagerTeam { manager_id: i32, event_id: i32 },
+    ClassicLeagueStandings { league_id: i32, page_standings: i32 },
+    H2HStandings { league_id: i32 },
 }
 
 const BASE_URL: &str = "https://fantasy.premierleague.com/api";
 
-pub fn get_fpl_url(endpoint: FPLEndpoint) -> String {
+pub fn get_fpl_url(endpoint: &FPLEndpoint) -> String {
     match endpoint {
         FPLEndpoint::Overview => format!("{}/bootstrap-static/", BASE_URL),
         FPLEndpoint::Fixtures => format!("{}/fixtures/", BASE_URL),

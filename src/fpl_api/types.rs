@@ -100,3 +100,11 @@ pub struct ManagerDB {
     pub manager_id: i32,
     pub entry_name: String,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ManagerSummary {
+    pub id: i32,
+    pub player_first_name: String,
+    pub player_last_name: String,
+    pub name: String,
+}

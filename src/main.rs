@@ -5,12 +5,13 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 
 mod fpl_api;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
-use fpl_api::pull_data::{pull_league_standings, pull_overview};
+use fpl_api::logic::ids_difference;
+use fpl_api::pull_data::{pull_league_standings, pull_manager, pull_overview};
 use fpl_api::types::{LeagueStandings, ManagerDB, PlayerFromDB};
 use rocket::serde::json::Json;
 use rocket::State;
 
-const OVERALL_LEAGUE_ID: u32 = 314;
+const OVERALL_LEAGUE_ID: i32 = 314;
 
 struct AppState {
     pool: PgPool,
@@ -23,7 +24,7 @@ fn index() -> &'static str {
 
 #[get("/fpl_endpoints")]
 fn fpl_endpoints() -> String {
-    get_fpl_url(FPLEndpoint::GameweekInfo { event_id: 5 })
+    get_fpl_url(&FPLEndpoint::GameweekInfo { event_id: 5 })
 }
 
 #[get("/overview")]
@@ -94,54 +95,61 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
 
 #[get("/managers/<player_name>")]
 async fn get_managers(state: &State<AppState>, player_name: String) -> Json<Vec<ManagerDB>> {
-    println!("{}", player_name);
-    let players = sqlx::query_as::<_, ManagerDB>(
+    let managers = sqlx::query_as::<_, ManagerDB>(
         "SELECT *
     FROM managers
     WHERE player_name ILIKE $1;",
     )
     .bind(format!("%{}%", &player_name));
-    let result = players.fetch_all(&state.pool).await.unwrap();
+    let result = managers.fetch_all(&state.pool).await.unwrap();
     Json(result)
 }
 
 #[get("/add_managers")]
-async fn add_managers(state: &State<AppState>) -> Json<LeagueStandings> {
-    let latest_page: Result<i32, sqlx::Error> = sqlx::query_scalar(
-        "SELECT page
-        FROM page_logs
+async fn add_managers(state: &State<AppState>) -> Json<Vec<i32>> {
+    let start_idx_result: Result<i32, sqlx::Error> = sqlx::query_scalar(
+        "SELECT start_idx
+        FROM add_manager_logs
         ORDER BY created_at DESC
         LIMIT 1;",
     )
     .fetch_one(&state.pool)
     .await;
-    let page = match latest_page {
-        Ok(latest) => latest + 1,
+    let start_idx = match start_idx_result {
+        Ok(latest) => latest + 100,
         Err(_) => 1,
     };
-    let resp = pull_league_standings(OVERALL_LEAGUE_ID, page)
-        .await
-        .unwrap();
-    let mut query_builder: QueryBuilder<Postgres> =
-        QueryBuilder::new("INSERT INTO managers(manager_id, player_name, entry_name)");
-    query_builder.push_values(&resp.standings.results, |mut b, manager| {
-        b.push_bind(manager.entry)
-            .push_bind(&manager.player_name)
-            .push_bind(&manager.entry_name);
-    });
-    let query = query_builder.build();
-    let query_result = query.execute(&state.pool).await;
-    match query_result {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-
-    sqlx::query("INSERT INTO page_logs (page) VALUES ($1)")
-        .bind(page)
+    let all_manager_ids: Vec<i32> = (start_idx..start_idx + 100).collect();
+    let managers =
+        sqlx::query_as::<_, ManagerDB>("SELECT * FROM managers WHERE manager_id = ANY($1)")
+            .bind(&all_manager_ids)
+            .fetch_all(&state.pool)
+            .await
+            .unwrap();
+    let manager_ids: Vec<i32> = managers.iter().map(|x| x.manager_id).collect();
+    let ids_to_add = ids_difference(all_manager_ids, manager_ids);
+    for manager_id in ids_to_add.clone() {
+        let manager_summary = pull_manager(manager_id).await.unwrap();
+        sqlx::query(
+            "INSERT INTO managers (manager_id, player_name, entry_name) VALUES ($1, $2, $3)",
+        )
+        .bind(manager_summary.id)
+        .bind(format!(
+            "{} {}",
+            manager_summary.player_first_name, manager_summary.player_last_name
+        ))
+        .bind(&manager_summary.name)
         .execute(&state.pool)
         .await
         .unwrap();
-    Json(resp)
+    }
+
+    sqlx::query("INSERT INTO add_manager_logs (start_idx) VALUES ($1)")
+        .bind(start_idx)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+    Json(ids_to_add)
 }
 
 #[shuttle_runtime::main]
