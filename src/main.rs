@@ -8,8 +8,33 @@ use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
 use fpl_api::logic::ids_difference;
 use fpl_api::pull_data::{pull_league_standings, pull_manager, pull_overview};
 use fpl_api::types::{LeagueStandings, ManagerDB, PlayerFromDB};
+use rocket::fairing::{Fairing, Info, Kind};
+use rocket::http::Header;
 use rocket::serde::json::Json;
 use rocket::State;
+use rocket::{Request, Response};
+
+pub struct CORS;
+
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers to responses",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new(
+            "Access-Control-Allow-Methods",
+            "POST, GET, PATCH, OPTIONS",
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+    }
+}
 
 const OVERALL_LEAGUE_ID: i32 = 314;
 
@@ -74,6 +99,7 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
     Json(result)
 }
 
+//example https://fpl.shuttleapp.rs/managers?get_by_name&name=Bob%20Smith
 #[get("/managers?get_by_name&<name>")]
 async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<ManagerDB>> {
     let managers = sqlx::query_as::<_, ManagerDB>(
@@ -89,16 +115,19 @@ async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<
 #[shuttle_runtime::main]
 async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::ShuttleRocket {
     let state = AppState { pool };
-    let rocket = rocket::build().manage(state).mount(
-        "/",
-        routes![
-            index,
-            overview,
-            player_timeseries,
-            get_manager_by_name,
-            count_managers
-        ],
-    );
+    let rocket = rocket::build()
+        .manage(state)
+        .mount(
+            "/",
+            routes![
+                index,
+                overview,
+                player_timeseries,
+                get_manager_by_name,
+                count_managers
+            ],
+        )
+        .attach(CORS);
     Ok(rocket.into())
 }
 
