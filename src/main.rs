@@ -74,14 +74,14 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
     Json(result)
 }
 
-#[get("/get_manager_by_name/<player_name>")]
-async fn get_manager_by_name(state: &State<AppState>, player_name: String) -> Json<Vec<ManagerDB>> {
+#[get("/managers?get_by_name&<name>")]
+async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<ManagerDB>> {
     let managers = sqlx::query_as::<_, ManagerDB>(
         "SELECT *
     FROM managers
     WHERE LOWER(player_name) = $1;",
     )
-    .bind(player_name.to_lowercase());
+    .bind(name.to_lowercase());
     let result = managers.fetch_all(&state.pool).await.unwrap();
     Json(result)
 }
