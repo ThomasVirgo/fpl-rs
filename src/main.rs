@@ -1,15 +1,20 @@
 #[macro_use]
 extern crate rocket;
 
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
 mod fpl_api;
+use fpl_api::data_loader::get_data_for_endpoint;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
+use fpl_api::fpl_schemas::manager_history::ManagerHistory;
+use fpl_api::fpl_schemas::manager_summary::ManagerSummary;
 use fpl_api::logic::ids_difference;
 use fpl_api::pull_data::{pull_league_standings, pull_manager, pull_overview};
 use fpl_api::types::{LeagueStandings, ManagerDB, PlayerFromDB};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
+use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket::{Request, Response};
@@ -99,6 +104,8 @@ async fn player_timeseries(state: &State<AppState>, player_id: i32) -> Json<Vec<
     Json(result)
 }
 
+enum JsonResultorError {}
+
 //example https://fpl.shuttleapp.rs/managers?get_by_name&name=Bob%20Smith
 #[get("/managers?get_by_name&<name>")]
 async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<ManagerDB>> {
@@ -110,6 +117,28 @@ async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<
     .bind(name.to_lowercase());
     let result = managers.fetch_all(&state.pool).await.unwrap();
     Json(result)
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct ManagerInfo {
+    manager_history: ManagerHistory,
+    manager_summary: ManagerSummary,
+}
+
+#[get("/managers/<manager_id>")]
+async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerInfo> {
+    let manager_summary =
+        get_data_for_endpoint::<ManagerSummary>(FPLEndpoint::ManagerSummary { manager_id })
+            .await
+            .unwrap();
+    let manager_history =
+        get_data_for_endpoint::<ManagerHistory>(FPLEndpoint::ManagerHistory { manager_id })
+            .await
+            .unwrap();
+    Json(ManagerInfo {
+        manager_history,
+        manager_summary,
+    })
 }
 
 #[shuttle_runtime::main]
@@ -124,7 +153,8 @@ async fn rocket(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_rocket::
                 overview,
                 player_timeseries,
                 get_manager_by_name,
-                count_managers
+                count_managers,
+                manager_info,
             ],
         )
         .attach(CORS);

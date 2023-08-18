@@ -1,35 +1,18 @@
 use crate::fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
+use crate::fpl_api::fpl_schemas::response_trait::ApiResponse;
+use std::error;
 
-pub struct DataLoader {
-    manager_id: i32,
-    event_id: i32,
+pub async fn get_data_for_endpoint<T: ApiResponse>(
+    endpoint: FPLEndpoint,
+) -> Result<T, Box<dyn error::Error>> {
+    let url = get_fpl_url(&endpoint);
+    let data = fetch_and_deserialize::<T>(&url).await?;
+    Ok(data)
 }
 
-impl DataLoader {
-    fn endpoints(self) -> Vec<FPLEndpoint> {
-        vec![
-            FPLEndpoint::ManagerSummary {
-                manager_id: self.manager_id,
-            },
-            FPLEndpoint::ManagerTeam {
-                manager_id: self.manager_id,
-                event_id: self.event_id,
-            },
-            FPLEndpoint::ManagerTransfers {
-                manager_id: self.manager_id,
-            },
-            FPLEndpoint::ManagerHistory {
-                manager_id: self.manager_id,
-            },
-        ]
-    }
-
-    fn urls(self) -> Vec<String> {
-        let endpoints = self.endpoints();
-        let rtn = endpoints
-            .iter()
-            .map(|endpoint| get_fpl_url(endpoint))
-            .collect();
-        rtn
-    }
+async fn fetch_and_deserialize<T: ApiResponse>(url: &str) -> Result<T, Box<dyn error::Error>> {
+    let response = reqwest::get(url).await?;
+    let text = response.text().await?;
+    let deserialized: T = T::from_json(&text)?;
+    Ok(deserialized)
 }
