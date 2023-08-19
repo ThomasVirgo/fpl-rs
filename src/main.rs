@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate rocket;
 
+use fpl_api::fpl_schemas::manager_team::ManagerTeam;
+use fpl_api::fpl_schemas::manager_transfers::ManagerTransfers;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
@@ -123,6 +125,8 @@ async fn get_manager_by_name(state: &State<AppState>, name: String) -> Json<Vec<
 struct ManagerInfo {
     manager_history: ManagerHistory,
     manager_summary: ManagerSummary,
+    manager_transfers: ManagerTransfers,
+    manager_teams: Vec<ManagerTeam>,
 }
 
 #[get("/managers/<manager_id>")]
@@ -135,9 +139,25 @@ async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerI
         get_data_for_endpoint::<ManagerHistory>(FPLEndpoint::ManagerHistory { manager_id })
             .await
             .unwrap();
+    let manager_transfers =
+        get_data_for_endpoint::<ManagerTransfers>(FPLEndpoint::ManagerTransfers { manager_id })
+            .await
+            .unwrap();
+    let mut manager_teams = Vec::new();
+    for event_id in 1..=2 {
+        let manager_team = get_data_for_endpoint::<ManagerTeam>(FPLEndpoint::ManagerTeam {
+            manager_id,
+            event_id,
+        })
+        .await
+        .unwrap();
+        manager_teams.push(manager_team);
+    }
     Json(ManagerInfo {
         manager_history,
         manager_summary,
+        manager_transfers,
+        manager_teams,
     })
 }
 
