@@ -6,6 +6,7 @@ use fpl_api::fpl_schemas::manager_transfers::ManagerTransfers;
 use fpl_api::fpl_schemas::player_points_scored::PlayerStatsForGameweek;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
+use std::time::Instant;
 
 mod fpl_api;
 use fpl_api::data_loader::get_data_for_endpoint;
@@ -129,10 +130,12 @@ struct ManagerInfo {
     manager_transfers: ManagerTransfers,
     manager_teams: Vec<ManagerTeam>,
     player_points_scores: Vec<PlayerStatsForGameweek>,
+    time_taken: u128,
 }
 
 #[get("/managers/<manager_id>")]
 async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerInfo> {
+    let now = Instant::now();
     let manager_summary =
         get_data_for_endpoint::<ManagerSummary>(FPLEndpoint::ManagerSummary { manager_id })
             .await
@@ -162,12 +165,14 @@ async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerI
                 .unwrap();
         player_points_scores.push(stats_for_gw);
     }
+    let time_taken = now.elapsed();
     Json(ManagerInfo {
         manager_history,
         manager_summary,
         manager_transfers,
         manager_teams,
         player_points_scores,
+        time_taken: time_taken.as_millis(),
     })
 }
 
