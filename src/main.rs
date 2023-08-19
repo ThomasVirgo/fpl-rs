@@ -3,6 +3,7 @@ extern crate rocket;
 
 use fpl_api::fpl_schemas::manager_team::ManagerTeam;
 use fpl_api::fpl_schemas::manager_transfers::ManagerTransfers;
+use fpl_api::fpl_schemas::player_points_scored::PlayerStatsForGameweek;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
@@ -127,6 +128,7 @@ struct ManagerInfo {
     manager_summary: ManagerSummary,
     manager_transfers: ManagerTransfers,
     manager_teams: Vec<ManagerTeam>,
+    player_points_scores: Vec<PlayerStatsForGameweek>,
 }
 
 #[get("/managers/<manager_id>")]
@@ -144,6 +146,7 @@ async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerI
             .await
             .unwrap();
     let mut manager_teams = Vec::new();
+    let mut player_points_scores = Vec::new();
     for event_id in 1..=2 {
         let manager_team = get_data_for_endpoint::<ManagerTeam>(FPLEndpoint::ManagerTeam {
             manager_id,
@@ -152,12 +155,19 @@ async fn manager_info(state: &State<AppState>, manager_id: i32) -> Json<ManagerI
         .await
         .unwrap();
         manager_teams.push(manager_team);
+
+        let stats_for_gw =
+            get_data_for_endpoint::<PlayerStatsForGameweek>(FPLEndpoint::GameweekInfo { event_id })
+                .await
+                .unwrap();
+        player_points_scores.push(stats_for_gw);
     }
     Json(ManagerInfo {
         manager_history,
         manager_summary,
         manager_transfers,
         manager_teams,
+        player_points_scores,
     })
 }
 
