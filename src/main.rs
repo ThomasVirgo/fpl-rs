@@ -4,6 +4,7 @@ extern crate rocket;
 use fpl_api::fpl_schemas::manager_team::ManagerTeam;
 use fpl_api::fpl_schemas::manager_transfers::ManagerTransfers;
 use fpl_api::fpl_schemas::player_points_scored::PlayerStatsForGameweek;
+use rocket::futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::time::Instant;
@@ -13,7 +14,8 @@ use fpl_api::data_loader::get_data_for_endpoint;
 use fpl_api::endpoints::{get_fpl_url, FPLEndpoint};
 use fpl_api::fpl_schemas::manager_history::ManagerHistory;
 use fpl_api::fpl_schemas::manager_summary::ManagerSummary;
-use fpl_api::logic::ids_difference;
+use fpl_api::logic::GameweekInfo;
+use fpl_api::logic::{element_to_name_mapping, ids_difference};
 use fpl_api::pull_data::{pull_league_standings, pull_manager, pull_overview};
 use fpl_api::types::{LeagueStandings, ManagerDB, PlayerFromDB};
 use rocket::fairing::{Fairing, Info, Kind};
@@ -131,6 +133,31 @@ struct ManagerInfo {
     manager_teams: Vec<ManagerTeam>,
     player_points_scores: Vec<PlayerStatsForGameweek>,
     time_taken: u128,
+}
+
+#[get("/managers/<manager_id>/captain")]
+async fn manager_info_v2(state: &State<AppState>, manager_id: i32) {
+    let overview = pull_overview().await.unwrap();
+    let mut gameweek_infos: Vec<GameweekInfo> = Vec::new();
+    for event_id in 1..=2 {
+        let manager_team = get_data_for_endpoint::<ManagerTeam>(FPLEndpoint::ManagerTeam {
+            manager_id,
+            event_id,
+        })
+        .await
+        .unwrap();
+
+        let stats_for_gw =
+            get_data_for_endpoint::<PlayerStatsForGameweek>(FPLEndpoint::GameweekInfo { event_id })
+                .await
+                .unwrap();
+
+        gameweek_infos.push(GameweekInfo {
+            gameweek: event_id,
+            player_stats: stats_for_gw,
+            manager_team: manager_team,
+        })
+    }
 }
 
 #[get("/managers/<manager_id>")]

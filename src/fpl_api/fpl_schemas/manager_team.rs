@@ -6,7 +6,7 @@ pub struct ManagerTeam {
     active_chip: Option<String>,
     //automatic subs
     entry_history: EntryHistory,
-    picks: Vec<Pick>,
+    pub picks: Vec<Pick>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -26,10 +26,10 @@ pub struct EntryHistory {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Pick {
-    element: i32,
+    pub element: i32,
     position: i32,
     multiplier: i32,
-    is_captain: bool,
+    pub is_captain: bool,
     is_vice_captain: bool,
 }
 

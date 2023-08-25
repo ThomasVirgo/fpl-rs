@@ -2,14 +2,19 @@ use crate::fpl_api::fpl_schemas::response_trait::ApiResponse;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct GWStats {
+    gameweek: i32,
+    player_stats_for_gw: PlayerStatsForGameweek,
+}
+#[derive(Deserialize, Serialize, Debug)]
 pub struct PlayerStatsForGameweek {
-    elements: Vec<PlayerPoints>,
+    pub elements: Vec<PlayerPoints>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PlayerPoints {
-    id: i32,
-    stats: Stats,
+    pub id: i32,
+    pub stats: Stats,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -36,7 +41,7 @@ pub struct Stats {
     expected_assists: String,
     expected_goal_involvements: String,
     expected_goals_conceded: String,
-    total_points: i32,
+    pub total_points: i32,
     in_dreamteam: bool,
 }
 
